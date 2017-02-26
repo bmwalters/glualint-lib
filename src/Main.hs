@@ -37,15 +37,6 @@ lintString str = do
     Right (warnings, _) -> Warnings warnings
     Left errs -> SyntaxErrors errs
 
--- "getHello" test:
--- Assigns a haskell callback, getHello,  to a javascript function.
--- The getHello function constructs a javascript object and
--- returns it to the javascript caller.  The "js_getHello" function
--- is callable from javascript.
-
-foreign import javascript unsafe "js_getHello = $1"
-    set_getHelloCallback :: Callback a -> IO ()
-
 jsObjectFromLintMessage :: LintMessage -> IO JSVal
 jsObjectFromLintMessage (LintError (Region (LineColPos sline spos sabs) (LineColPos eline epos eabs)) msg _) = do
   o <- create
@@ -71,8 +62,10 @@ jsObjectFromLintMessage (LintWarning (Region (LineColPos sline spos sabs) (LineC
   setProp "endAbs" (pToJSVal eabs) o
   return $ jsval o
 
-getHelloTest = do
-    let getHello inputJSStr = do
+foreign import javascript unsafe "gluaLintString = $1" set_gluaLintString :: Callback a -> IO ()
+
+exposeLintFunction = do
+    let lintJSString inputJSStr = do
             Just str <- fromJSVal inputJSStr
             o <- create
             let !linted = lintString str
@@ -81,8 +74,8 @@ getHelloTest = do
               Warnings msgs -> return $ unsafePerformIO $ toJSValListOf $ map (unsafePerformIO . jsObjectFromLintMessage) msgs
               SyntaxErrors msgs -> return $ unsafePerformIO $ toJSValListOf $ map (unsafePerformIO . jsObjectFromLintMessage) msgs
 
-    getHelloCallback <- syncCallback1' getHello
-    set_getHelloCallback getHelloCallback
+    gluaLintStringCallback <- syncCallback1' lintJSString
+    set_gluaLintString gluaLintStringCallback
 
 main = do
-    getHelloTest
+    exposeLintFunction
