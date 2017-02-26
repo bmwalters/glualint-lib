@@ -50,11 +50,9 @@ getHelloTest = do
             o <- create
             let !linted = lintString str
             case linted of
-              Good -> setProp "helloworld" (jsval $ pack $ "good") o
-              Warnings msgs -> setProp "helloworld" (unsafePerformIO (toJSValListOf (map (warn_msg) msgs))) o
-              SyntaxErrors msgs -> setProp "helloworld" (jsval $ pack $ "errors") o
-            --setProp "helloworld" (jsval $ pack $ "(get): hello, " ++ str) o
-            return $ jsval o -- accessible from javascript caller.
+              Good -> return (jsval $ pack $ "good")
+              Warnings msgs -> return (unsafePerformIO (toJSValListOf (map (warn_msg) msgs)))
+              SyntaxErrors msgs -> return (jsval $ pack $ "errors")
 
     getHelloCallback <- syncCallback1' getHello
     set_getHelloCallback getHelloCallback
