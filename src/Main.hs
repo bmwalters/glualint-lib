@@ -49,6 +49,7 @@ foreign import javascript unsafe "js_getHello = $1"
 jsObjectFromLintMessage :: LintMessage -> IO JSVal
 jsObjectFromLintMessage (LintError (Region (LineColPos sline spos sabs) (LineColPos eline epos eabs)) msg _) = do
   o <- create
+  setProp "type" (jsval $ pack $ "error") o
   setProp "msg" (jsval $ pack msg) o
   setProp "startLine" (pToJSVal sline) o
   setProp "startPos" (pToJSVal spos) o
@@ -60,6 +61,7 @@ jsObjectFromLintMessage (LintError (Region (LineColPos sline spos sabs) (LineCol
 
 jsObjectFromLintMessage (LintWarning (Region (LineColPos sline spos sabs) (LineColPos eline epos eabs)) msg _) = do
   o <- create
+  setProp "type" (jsval $ pack $ "warning") o
   setProp "msg" (jsval $ pack msg) o
   setProp "startLine" (pToJSVal sline) o
   setProp "startPos" (pToJSVal spos) o
