@@ -18,9 +18,6 @@ cabal-version:       >=1.10
 executable glualint-web
   main-is:             Main.hs
 
-  js-sources:
-    jsbits/editor.js
-
   -- other-extensions:
   build-depends:
       base >=4.8
