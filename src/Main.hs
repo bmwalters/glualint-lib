@@ -8,13 +8,15 @@ import           "glualint-lib" GLuaFixer.LintMessage (LintMessage (..), sortLin
 import qualified "glualint-lib" GLuaFixer.Util as Util
 import qualified "glualint-lib" GLua.Parser as P
 import qualified "glualint-lib" GLua.AG.PrettyPrint as PP
-import GHCJS.Marshal.Internal(toJSValListOf)
-import GHCJS.Marshal(fromJSVal)
+import GHCJS.Marshal.Internal(toJSVal, toJSValListOf)
+import GHCJS.Marshal.Pure(pToJSVal)
+import GHCJS.Marshal(fromJSVal, toJSVal)
 import GHCJS.Foreign.Callback (Callback, syncCallback1, syncCallback1', OnBlocked(ContinueAsync))
 import Data.JSString (JSString, pack)
 import GHCJS.Types (JSVal, jsval)
 import JavaScript.Object (create, setProp)
 import System.IO.Unsafe(unsafePerformIO)
+import Text.ParserCombinators.UU.BasicInstances(LineColPos(..))
 
 data LintStatus =
     Good -- Good code, no problems!
@@ -44,6 +46,29 @@ lintString str = do
 foreign import javascript unsafe "js_getHello = $1"
     set_getHelloCallback :: Callback a -> IO ()
 
+jsObjectFromLintMessage :: LintMessage -> IO JSVal
+jsObjectFromLintMessage (LintError (Region (LineColPos sline spos sabs) (LineColPos eline epos eabs)) msg _) = do
+  o <- create
+  setProp "msg" (jsval $ pack msg) o
+  setProp "startLine" (pToJSVal sline) o
+  setProp "startPos" (pToJSVal spos) o
+  setProp "startAbs" (pToJSVal sabs) o
+  setProp "endLine" (pToJSVal eline) o
+  setProp "endPos" (pToJSVal epos) o
+  setProp "endAbs" (pToJSVal eabs) o
+  return $ jsval o
+
+jsObjectFromLintMessage (LintWarning (Region (LineColPos sline spos sabs) (LineColPos eline epos eabs)) msg _) = do
+  o <- create
+  setProp "msg" (jsval $ pack msg) o
+  setProp "startLine" (pToJSVal sline) o
+  setProp "startPos" (pToJSVal spos) o
+  setProp "startAbs" (pToJSVal sabs) o
+  setProp "endLine" (pToJSVal eline) o
+  setProp "endPos" (pToJSVal epos) o
+  setProp "endAbs" (pToJSVal eabs) o
+  return $ jsval o
+
 getHelloTest = do
     let getHello inputJSStr = do
             Just str <- fromJSVal inputJSStr
@@ -51,8 +76,8 @@ getHelloTest = do
             let !linted = lintString str
             case linted of
               Good -> return (jsval $ pack $ "good")
-              Warnings msgs -> return (unsafePerformIO (toJSValListOf (map (warn_msg) msgs)))
-              SyntaxErrors msgs -> return (jsval $ pack $ "errors")
+              Warnings msgs -> return $ unsafePerformIO $ toJSValListOf $ map (unsafePerformIO . jsObjectFromLintMessage) msgs
+              SyntaxErrors msgs -> return $ unsafePerformIO $ toJSValListOf $ map (unsafePerformIO . jsObjectFromLintMessage) msgs
 
     getHelloCallback <- syncCallback1' getHello
     set_getHelloCallback getHelloCallback
