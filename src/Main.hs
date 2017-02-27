@@ -37,6 +37,16 @@ lintString str = do
     Right (warnings, _) -> Warnings warnings
     Left errs -> SyntaxErrors errs
 
+prettyPrint :: String -> String
+prettyPrint lua =
+  let
+    parsed = P.parseGLuaFromString lua
+    ast = fst parsed
+    ppconf = Settings.lint2ppSetting defConfig
+    pretty = PP.prettyprintConf ppconf $ ast
+  in
+    pretty
+
 jsObjectFromLintMessage :: LintMessage -> IO JSVal
 jsObjectFromLintMessage (LintError (Region (LineColPos sline spos sabs) (LineColPos eline epos eabs)) msg _) = do
   o <- create
@@ -67,7 +77,6 @@ foreign import javascript unsafe "gluaLintString = $1" set_gluaLintString :: Cal
 exposeLintFunction = do
     let lintJSString inputJSStr = do
             Just str <- fromJSVal inputJSStr
-            o <- create
             let !linted = lintString str
             case linted of
               Good -> return (jsval $ pack $ "good")
@@ -77,5 +86,16 @@ exposeLintFunction = do
     gluaLintStringCallback <- syncCallback1' lintJSString
     set_gluaLintString gluaLintStringCallback
 
+foreign import javascript unsafe "gluaPrettyPrintString = $1" set_gluaPrettyPrintString :: Callback a -> IO ()
+
+exposePrettyPrintFunction = do
+  let prettyPrintJSString inputJSStr = do
+            Just str <- fromJSVal inputJSStr
+            return $ jsval $ pack $ prettyPrint $ str
+
+  gluaPrettyPrintStringCallback <- syncCallback1' prettyPrintJSString
+  set_gluaPrettyPrintString gluaPrettyPrintStringCallback
+
 main = do
     exposeLintFunction
+    exposePrettyPrintFunction
